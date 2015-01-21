@@ -21,7 +21,7 @@ table(_Sample) ->
     FreqTable = freq(_Sample),
     Tree = huffman(FreqTable),
     Table = huffman_traverse(Tree),
-    sort_huffman(Table).
+    sort(Table).
 
 encode([], _) -> [];
 encode([_Head | _Tail], _Table) -> 
@@ -53,13 +53,13 @@ huffman([E]) -> [E].
 % Traversal of the tree
 huffman_traverse([]) -> [];
 huffman_traverse([{node, _, Left, Right}]) -> 
-    huffman_traverse(Left, [<<0:1>>]) ++ huffman_traverse(Right, [<<1:1>>]);
+    huffman_traverse(Left, [0]) ++ huffman_traverse(Right, [1]);
 huffman_traverse({leaf, Char, _}) -> [{Char, []}].
 
 huffman_traverse({node, _, Left, Right}, Traversal) ->
-    huffman_traverse(Left, Traversal ++ [<<0:1>>])
+    huffman_traverse(Left, Traversal ++ [0])
     ++
-    huffman_traverse(Right, Traversal ++ [<<1:1>>]);
+    huffman_traverse(Right, Traversal ++ [1]);
 huffman_traverse({leaf, Char, _}, Traversal) -> [{Char, Traversal}].
 
 % Extract frequency of the node or leaf
@@ -80,47 +80,40 @@ binary_search(Array, Key) ->
 
 binary_search(Array, Key, Lo, Hi) when Lo =< Hi ->
     Mid = Lo + (Hi - Lo) div 2,
-    {MidElement, Traversal} = lists:nth(Mid, Array),
+    {MidElement, Path} = lists:nth(Mid, Array),
     if
        Key > MidElement -> binary_search(Array, Key, Mid + 1, Hi);
        Key < MidElement -> binary_search(Array, Key, Lo, Mid - 1);
-       Key == MidElement -> Traversal
+       Key == MidElement -> Path
     end;
 binary_search(_, _, _, _) -> {error, "Not found"}.
 
 % QuickSort and Merge
-% TODO Try to merge the sort-algorithms
-% Could be done using a compare-function?
 qsort_and_merge([]) -> [];
 qsort_and_merge(Array) ->
-    FrequencyArray = freq_sort(Array),
-    sort_by_freq(FrequencyArray).
+    FrequencyArray = sort(Array),
+    sort(FrequencyArray).
 
-% Sorting that counts the frequency of the element 
-freq_sort([]) -> [];
-freq_sort([Head | Tail]) ->
-    Larger = [X || X <- Tail, X > Head],
-    Smaller = [X || X <- Tail, X < Head],
-    Equal = [1 || X <- Tail, X == Head],
-    freq_sort(Smaller)
-        ++ [{leaf, Head, length(Equal) + 1}]
-        ++ freq_sort(Larger).
+sort([]) -> [];
+sort(X) ->
+    {Smaller, Equal, Larger} = compare(X),
+    sort(Smaller) ++ Equal ++ sort(Larger).
 
-% Sorts leafs by frequency, largest first
-sort_by_freq([]) -> [];
-sort_by_freq([{leaf, Value, Head} | Tail]) ->
-    Larger  = [{leaf, Char, Freq} ||
-        {leaf, Char, Freq} <- Tail, Freq > Head],
+% Comparator
+compare([{leaf, Value, Head} | Tail]) ->
     Smaller = [{leaf, Char, Freq} ||
         {leaf, Char, Freq} <- Tail, Freq =< Head],
-    sort_by_freq(Larger)
-        ++ [{leaf, Value, Head}]
-        ++ sort_by_freq(Smaller).
-
-% Sorts {X, Y} by X, smallest first
-sort_huffman([]) -> [];
-sort_huffman([{Char, Trav} | Tail]) ->
-    Smaller = [{X, Y} || {X, Y} <- Tail, X < Char],
-    Larger = [{X, Y} || {X, Y} <- Tail, X >= Char],
-    sort_huffman(Smaller) ++ [{Char, Trav}] ++ sort_huffman(Larger).
+    Equal = {leaf, Value, Head},
+    Larger  = [{leaf, Char, Freq} ||
+        {leaf, Char, Freq} <- Tail, Freq > Head],
+    {Larger, [Equal], Smaller};
+compare([{Fst, Snd} | Tail]) ->
+    Smaller = [{X, Y} || {X, Y} <- Tail, X < Fst],
+    Larger = [{X, Y} || {X, Y} <- Tail, X >= Fst],
+    {Smaller, [{Fst, Snd}], Larger};
+compare([Head | Tail]) ->
+    Smaller = [X || X <- Tail, X < Head],
+    Equal = [1 || X <- Tail, X == Head],
+    Larger = [X || X <- Tail, X > Head],
+    {Smaller, [{leaf, Head, length(Equal) + 1}], Larger}.
 
