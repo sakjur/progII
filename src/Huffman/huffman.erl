@@ -41,7 +41,6 @@ decode_char(Seq, N, Table) ->
         false ->
             decode_char(Seq, N+1, Table)
         end.
-            
 
 % Huffman tree creation
 huffman([]) -> [];
@@ -52,15 +51,14 @@ huffman([E]) -> [E].
 
 % Traversal of the tree
 huffman_traverse([]) -> [];
-huffman_traverse([{node, _, Left, Right}]) -> 
-    huffman_traverse(Left, [0]) ++ huffman_traverse(Right, [1]);
-huffman_traverse({leaf, Char, _}) -> [{Char, []}].
+huffman_traverse([X]) -> 
+    huffman_traverse(X, []).
 
-huffman_traverse({node, _, Left, Right}, Traversal) ->
-    huffman_traverse(Left, Traversal ++ [0])
+huffman_traverse({node, _, Left, Right}, Path) ->
+    huffman_traverse(Left, Path ++ [<<0:1>>])
     ++
-    huffman_traverse(Right, Traversal ++ [1]);
-huffman_traverse({leaf, Char, _}, Traversal) -> [{Char, Traversal}].
+    huffman_traverse(Right, Path ++ [<<1:1>>]);
+huffman_traverse({leaf, Char, _}, Path) -> [{Char, Path}].
 
 % Extract frequency of the node or leaf
 get_freq({node, Freq, _, _}) -> Freq;
