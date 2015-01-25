@@ -1,5 +1,5 @@
 -module(test).
--export([double/1, ftocelsius/1]).
+-export([double/1, ftoc/1]).
 -export([rectangle/2, square/1, circle/1]).
 -export([product/2, exp/2, fast_exp/2]).
 -export([nth/2, number/1, sum/1, duplicate/1]).
@@ -10,7 +10,7 @@ double(A) ->
     A*2.
 
 % Converts from fahrenheit to celsius
-ftocelsius(F) ->
+ftoc(F) ->
     (F-32)/1.8.
 
 % The area of a rectangle
@@ -52,15 +52,12 @@ fast_exp(X, Y) ->
             X * fast_exp(X, Y-1)
     end.
 
-% Finds the nth object in a list. One-indexed 
-% (because first makes more sense than zeroeth)
-nth(0, _) ->
+% Finds the nth object in a list
+nth(_, []) ->
     error;
-nth(1, L) ->
-    [Head | _] = L,
+nth(0, [Head | _]) ->
     Head;
-nth(N, L) ->
-    [_ | Tail] = L,
+nth(N, [_ | Tail]) ->
     nth(N-1, Tail).
 
 % Sums the amount of elements in a list
