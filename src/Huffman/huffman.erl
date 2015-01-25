@@ -72,13 +72,15 @@ freq([Head | Tail], List) ->
 freq([], List) -> qsort_and_merge(List).
 
 % Binary Search
+% TODO Replace with a R/B tree or other effective datastructure
 binary_search([], _) -> [];
-binary_search(Array, Key) ->
-    binary_search(Array, Key, 0, length(Array)).
+binary_search(List, Key) ->
+    Array = array:from_list(List), % Use an array as lists:nth is O(n)
+    binary_search(Array, Key, 0, length(List)).
 
 binary_search(Array, Key, Lo, Hi) when Lo =< Hi ->
     Mid = Lo + (Hi - Lo) div 2,
-    {MidElement, Path} = lists:nth(Mid, Array),
+    {MidElement, Path} = array:get(Mid, Array),
     if
        Key > MidElement -> binary_search(Array, Key, Mid + 1, Hi);
        Key < MidElement -> binary_search(Array, Key, Lo, Mid - 1);
