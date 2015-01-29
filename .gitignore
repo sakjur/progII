@@ -9,4 +9,11 @@ rel/example_project
 .concrete/DEV_MODE
 .rebar
 
-.swp
+*.swp
+
+*.aux
+*.log
+*.out
+*.pdf
+*.synctex.gz
+

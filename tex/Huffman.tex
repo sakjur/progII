@@ -1,0 +1,163 @@
+%% En enkel mall för att skapa en labb-raport.
+\documentclass[a4paper, 11pt]{article}
+\usepackage[utf8]{inputenc} 
+\usepackage[swedish]{babel}
+\usepackage{listings}
+\usepackage[colorlinks=true]{hyperref}
+\usepackage[parfill]{parskip}
+\usepackage{color}
+
+\definecolor{codebg}{rgb}{.9,.9,.9}
+
+\lstset{
+	language=erlang,
+	basicstyle=\footnotesize\ttfamily,
+	numbers=left,
+	breaklines=true,
+	frame=r,
+	captionpos=b,
+	showstringspaces=false,
+	escapeinside={@*}{*@},
+	backgroundcolor=\color{codebg}
+}
+
+\hyphenation{prestanda-vinster}
+
+\title{Huffmankodning}
+\author{Emil Tullstedt}
+\date{2015-01-29}
+
+\begin{document}
+
+\maketitle
+
+\section{Uppgiften}
+
+Uppgiftens syfte är att utveckla och utvärdera en enkel textkomprimering i programmeringsspråket Erlang med hjälp av s.k. Huffman-kod.
+
+\section{Ansats}
+
+För att kunna skapa Huffman-kod så behövs det tre separata delar, en del för att skapa en Huffman-tabell $\mathcal{H}$ av mängden $\mathcal{N}$, en del för att komprimera en mängd $\mathcal{M}$ med hjälp av $\mathcal{H}$ och en del för att avkomprimera en mängd $\mathcal{M}$ med hjälp av $\mathcal{H}$. För alla bokstäver $\mathcal{M}_n$ måste $\mathcal{M}_n \in \mathcal{N}$ gälla åtminstone en gång.
+
+Vi börjar med att analysera skapandet av Huffman-tabellen
+
+\subsection{Frekvensanalys \& Huffman-tabell}
+
+\subsubsection{Sortering}
+
+Att börja med så laborerade jag med att implementera en enkel QuickSort-sortering för att få elementen i ordning.
+
+Jag skapade olika komparatorer beroende på elementets som returnerar en tuple \texttt{\{Mindre, Lika Stora, Större\}} som sedan kallar sorteringsfunktionen rekursivt över \texttt{Mindre} och \texttt{Större}. I exemplet nedan kan man se en komparator som dessutom eliminerar duplicerade förekomster av likvärdiga element och räknar ihop frekvensen av varje element.
+
+\begin{lstlisting}
+compare([Head | Tail]) ->                                                          
+    Less = [X || X <- Tail, X < Head],                                          
+    Equal = [1 || X <- Tail, X == Head],                                           
+    More = [X || X <- Tail, X > Head],                                           
+    {Less, [{node, Head, length(Equal) + 1, na, na}], More}. 
+\end{lstlisting}
+
+Implementationen täcker de grundläggande kraven för att sortera både \texttt{node}-element, \texttt{\{Fst, Snd\}}-strukturer av bokstäver och tillhörande Huffman-koder samt en enkel sortering av bokstäver som räknar frekvenser och skapar releventa \texttt{node}-element.
+
+\subsection{Skapande av Huffman-träd}
+Genom att alterera sorteringsfunktionen för \texttt{node}-element så att den är fallande istället för stigande så får vi tre olika fall att hantera gällande den sorterade listan $\mathcal{L}$ av Huffman-tabellen $\mathcal{H}$:
+
+\begin{itemize}
+\item $\mathcal{L}$ innehåller en enda nod $\rightarrow$ $\mathcal{H} = [\mathcal{L}]$
+\item $\mathcal{L}$ är tom $\rightarrow$ $\mathcal{H} = \emptyset$
+\item $\mathcal{L}$ innehåller 2 eller fler noder $\rightarrow$ $\mathcal{H}$ skapar en grennod av de två första elementen i $\mathcal{L}$ och sedan lägga in dem på platsen av de två elements sammanlagda frekvens i $\mathcal{L}'$ som sedan rekursivt används för att skapa den fullständiga tabellen
+\end{itemize}
+
+För att placera ett nyskapat element i det tredje fallet ovan används funktionen 
+
+\begin{lstlisting}
+insertInPos([Head | Tail], Node) ->                                             
+  HeadFreq = get_freq(Head),                                                  
+  NodeFreq = get_freq(Node),                                                  
+  if                                                                          
+    HeadFreq  < NodeFreq -> [Head | insertInPos(Tail, Node)];               
+    HeadFreq >= NodeFreq -> [Node, Head | Tail]                             
+  end;                                                                        
+insertInPos([], Node) -> [Node].
+\end{lstlisting}
+
+som går igenom listan tills dess att den kommer fram till rätt position och skapar en ny $\mathcal{L}$.
+
+\subsubsection{Skapande av Huffman-tabell}
+
+För att vidare skapa Huffman-tabellen från Huffman-trädet itereras trädet rekursivt i ordningen \texttt{Vänstergren $\rightarrow$ Högergren} där alla värden för hur trädet itereras över. När man väljer mellan att gå nedåt i trädet antingen åt höger eller vänster läggs 1 respektive 0 på till en lista i en tuple som innehåller ett tecken och listan med de vägvalen som behövs för att nå noden. Den här tuplen sparas i en lista som sedan sorteras i alfabetisk ordning. Då har vi en färdig Huffman-tabell för kodning och avkodning.
+
+\subsection{Komprimeringskod}
+
+Komprimeringskoden för att skapa en Huffman-version av en text är väldigt enkelt implementerad och innehåller en binärsökning i listan innehållandes Huffman-trädet (omvandlat till en \textit{array} för att underlätta för binärsökningen). Här kan viss prestandavinst göras genom att skapa en smartare implementation, men implementationen som jag har valt kan implementeras med nedanstående kod förutsatt att en implementation av binary\_search finns tillgänglig.
+
+\begin{lstlisting}
+encode([], _) -> [];                                                            
+encode([Head | Tail], Table) ->                                                 
+    Value = binary_search(Table, Head),                                         
+    Value ++ encode(Tail, Table).  
+\end{lstlisting}
+
+\subsection{Avkomprimering}
+
+För att avkomprimera så går vi igenom sekvensen av komprimerad text bit för bit tills dess att vi hittar en kombination som motsvarar en bokstav, när vi lägger den i början av en sträng med karaktärer för att sedan rekursivt gå vidare till att undersöka nästa tecken i svansen. Därefter har vi byggt en komprimeringstabell, komprimerat och avkomprimerat och är därmed färdiga med vår grundläggande implementation av Huffman-kod.
+
+\section{Utvärdering}
+
+För att testa Huffman implementationens egenskaper så undersöks delvis exempeltexten \textit{this is something that we should encode} som gavs angavs som exempeltext (och som komprimeras med den längre exempeltexten som bas för frekvensanalysen). Vidare så undersöks även Sir Arthur Conan Doyle's A Study in Scarlet \footnote{\url{http://www.gutenberg.org/ebooks/244}} samt USAs konstitution \footnote{\url{http://www.gutenberg.org/ebooks/5}} som använder sig själva för frekvensanalys. 
+
+Vi kan se i tabell \ref{tab:results} att texterna komprimerar till ungefär 0.6 i de testade fallen. Det torde vara standardfall då de texterna som vi nyttjade ganska väl motsvarar det engelska språket.
+
+Som en ytterligare kontrolltext så undersöktes fallet där A scarlet in red komprimeras med en teckentabell som genereras av USAs konstitution (med en fullständig ASCII-tabell före för att garantera att alla tecken finns med i Huffman-tabellen). Återigen så kan man se i tabell \ref{tab:results} att kompressionen är $\sim$0.60.
+
+Slutligen så undersöker vi en större fil tillsammans med tabellen från konstitutionen, nämligen Tolstojs War \& Peace  \footnote{\url{http://www.gutenberg.org/ebooks/2600}} som från början är 3.2MB stor. Vi ser tydligt i \ref{tab:results} att även den komprimerar ner till 0.61 av originalstorleken.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|r|r|}  
+\hline
+Källfil & Komprimerad text & Kompressionsfaktor\\
+\hline
+Från uppgift & 22 B & 0.57\\
+\hline
+U.S. Constitution & 27 kB & 0.62\\
+\hline
+A Study In Scarlet & 160 kB & 0.61\\
+\hline
+A Study In Scarlet* & 161 kB & 0.61\\
+\hline
+War \& Peace* & 2 MB & 0.61\\
+\hline
+\end{tabular}
+\caption{Lista över kompressionsnivåer på olika verk. *-markerade filer använder USAs konstitution som tabellgenerator}
+\label{tab:results}
+\end{table}
+
+Genom att studera tabell \ref{tab:timer} kan vi notera att tabellskapningen (föga förvånande) är den delen som tar absolut mest tid när vi börjar komma upp i lite större dokument. Genom vår tidigare kombinerade version av konstitutionen och \textit{A Study in Scarlet} så kan vi konstatera att man kan, utan förlorad kompressionsförmåga (se tabell \ref{tab:results}) snabba upp processen att skapa Huffman-tabellen väldigt mycket genom att välja en mindre text till att generera tabellen.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|r|r|r|}  
+\hline
+Källfil & Tabellskapningstid & Kodningstid & Avkodningstid\\
+\hline
+Från uppgift & $\sim$420 $\mu s$ & $\sim$3 700 $\mu s$ & $\sim$390 $\mu s$\\
+\hline
+U.S. Constitution & $\sim$5 $s$ & $\sim$230 $ms$ & $\sim$500 $ms$\\
+\hline
+A Study In Scarlet & $\sim$319 $s$ & $\sim$3 $s$ & $\sim$7 $s$\\
+\hline
+A Study In Scarlet* & $\sim$5 $s$ & $\sim$3 $s$ & $\sim$7 $s$ \\
+\hline
+War \& Peace* & $\sim$5 $s$ & $\sim$46 $s$ & $\sim$87 $s$\\
+\hline
+\end{tabular}
+\caption{Lista över tidsåtgång för programmets olika delar. *-markerade filer använder USAs konstitution som tabellgenerator}
+\label{tab:timer}
+\end{table}
+
+\section{Sammanfattning}
+
+Det var inte helt självklart hur man skulle testa för att se om implementationen är korrekt, men ovanstående prestandatester kan vi se att vi har skapat basen för en hyfsad komprimeringsfunktion. Givetvis finns det många prestandavinster att göras i en produktionsimplementation. Whaam!
+
+\end{document}
