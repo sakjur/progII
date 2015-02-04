@@ -60,7 +60,7 @@ compare([Head | Tail]) ->
 Implementationen täcker de grundläggande kraven för att sortera både \texttt{node}-element, \texttt{\{Fst, Snd\}}-strukturer av bokstäver och tillhörande Huffman-koder samt en enkel sortering av bokstäver som räknar frekvenser och skapar releventa \texttt{node}-element.
 
 \subsection{Skapande av Huffman-träd}
-Genom att alterera sorteringsfunktionen för \texttt{node}-element så att den är fallande istället för stigande så får vi tre olika fall att hantera gällande den sorterade listan $\mathcal{L}$ av Huffman-tabellen $\mathcal{H}$:
+Genom att alterera sorteringsfunktionen för \texttt{node}-element så att den är fallande istället för stigande så får vi tre olika fall att hantera gällande den sorterade listan $\mathcal{L}$ av Huffman-trädet $\mathcal{H}$:
 
 \begin{itemize}
 \item $\mathcal{L}$ innehåller en enda nod $\rightarrow$ $\mathcal{H} = [\mathcal{L}]$
