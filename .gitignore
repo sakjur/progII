@@ -16,4 +16,5 @@ rel/example_project
 *.out
 *.pdf
 *.synctex.gz
+*.bak
 
