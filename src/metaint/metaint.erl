@@ -82,12 +82,12 @@ eval_switch({_, _, {atm, []}}, _) ->
     fail;
 eval_switch({switch, Exp, {_, _} = Cmp}, Env) ->
     eval_switch({switch, Exp, {cons, Cmp, {atm, []}}}, Env);
-eval_switch({switch, Exp, {cons, {Head, Seq}, Tail}}, Env) ->
+eval_switch({switch, Exp, {cons, {Comp, Seq}, Tail}}, Env) ->
     case eval_expr(Exp, Env) of
         error ->
             fail;
-        {ok, _} ->
-            case eval_match(Exp, Head, Env) of
+        {ok, Str} ->
+            case eval_match(Comp, Str, Env) of
                 fail ->
                     eval_switch({switch, Exp, Tail}, Env);
                 {ok, NEnv} ->

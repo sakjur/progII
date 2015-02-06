@@ -1,0 +1,89 @@
+%% En enkel mall för att skapa en labb-raport.
+\documentclass[a4paper, 11pt]{article}
+\usepackage[utf8]{inputenc} 
+\usepackage[swedish]{babel}
+\usepackage{listings}
+\usepackage[colorlinks=true]{hyperref}
+\usepackage[parfill]{parskip}
+\usepackage{color}
+\usepackage{syntax}
+
+\definecolor{codebg}{rgb}{.9,.9,.9}
+
+\lstset{
+	language=erlang,
+	basicstyle=\footnotesize\ttfamily,
+	numbers=left,
+	breaklines=true,
+	frame=r,
+	captionpos=b,
+	showstringspaces=false,
+	escapeinside={@*}{*@},
+	backgroundcolor=\color{codebg}
+}
+
+\hyphenation{prestanda-vinster antingen}
+
+\title{Metainterpretator $\mu$Erlang}
+\author{Emil Tullstedt}
+\date{2015-02-06}
+
+\begin{document}
+
+\maketitle
+
+\section{Uppgiften}
+
+Uppgiftens går ut på att färdigställa, expandera och analysera en interpretator för ett Erlang-liknande språk. Språket har stöd för enkla sekvenser, pattern-matching och `case`-uttryck.
+
+\section{Ansats}
+
+\subsection{Case/Switch-implementation}
+En logisk utveckling av metainterpretatorn är en villkorad flervägsstruktur, som i Erlang finns implementerad som \texttt{case}-satser. Principen är att under\-söka värdet i en variabel \textit{X} mot ett villkor och sedan gå vidare antingen till att exekvera sekvensen det villkoret anger ifall villkoret uppfylls, eller att gå vidare till nästa villkor. När det inte finns några vidare villkor att undersöka så har \texttt{case}-satsen misslyckats och ska skicka ett fel\-meddel\-ande.
+
+\begin{lstlisting}
+case X of
+    a -> sequenceA;
+    b -> sequenceB
+end.
+\end{lstlisting}
+
+Motsvarande struktur i metainterpretatorn skulle kunna representeras som \\ \lstinline${switch, {var, x}, {cons, {a, sequenceA}, {cons, {b, sequenceB}, {atm, []}}}}$ för en likvärdig flexibilitet som Erlangs implementation.
+
+Genom att evaluera \textit{X} får vi ut värdet som ska matchas mot villkoren som anges i en tuple \lstinline${villkor, sekvens}$ innuti en \texttt{cons} med hjälp av funktionen \texttt{eval_match}.
+
+\section{Utvärdering}
+
+\begin{grammar}
+<expression> ::= <atom>
+\alt <variable>
+\alt <switch>
+\alt <cons>
+
+<atom> ::= '\{atm,' <word> '\}'
+
+<variable> ::= '\{var,' <word> '\}'
+
+<switch> ::= '\{switch,' <expression> ',' <switch_stmt> '\}'
+
+<switch_stmt> ::= '\{' <pattern> ',' <sequence> '\}'
+\alt '\{cons,' <switch_stmt> ',' <switch_stmt> '\}'
+\alt <null>
+
+<null> ::= '\{atm, []\}'
+
+<cons> ::= '\{cons,' <expression> ',' <expression> '\}'
+
+<match> ::= '\{match,' <pattern> ',' <expression> '\}'
+
+<pattern> ::= <expression>
+\alt 'ignore'
+
+<sequence> ::= '[' <expression> ']'
+	\alt '[' <match> ',' <sequence> ']'
+\end{grammar}
+
+\section{Sammanfattning}
+
+
+\end{document}
