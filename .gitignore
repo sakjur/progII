@@ -17,4 +17,4 @@ rel/example_project
 *.pdf
 *.synctex.gz
 *.bak
-
+*.dvi

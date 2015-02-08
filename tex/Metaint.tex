@@ -34,9 +34,9 @@
 \hyphenpenalty=900
 \hyphenation{prestanda-vinster antingen ut-formad funk-tion-en grunden inter-pretator}
 
-\title{Metainterpretator $\mu$Erlang}
-\author{Emil Tullstedt}
-\date{2015-02-06}
+\title{Metainterpretator --- Erlang}
+\author{Emil Tullstedt \href{mailto:emiltu@kth.se}{$<$emiltu@kth.se$>$}}
+\date{2015-02-09}
 
 \begin{document}
 
@@ -44,56 +44,55 @@
 
 \section{Uppgiften}
 
-Uppgiftens går ut på att färdigställa, expandera och analysera en interpretator för ett Erlang-liknande språk. Språket har stöd för enkla sekvenser, pattern-matching och `case`-uttryck.
+Uppgiftens går ut på att färdigställa, expandera och analysera en interpretator för ett Erlang-liknande språk med stöd för enkla sekvenser, pattern-matching och ett \texttt{case}-liknande villkorat flervägsstruktur uttryck.
 
 \section{Ansats}
 
 \subsection{Bygga upp Världen}
-Den första delen i att skriva en metainterpretator för Erlang är att möjlliggöra för att bygga upp miljön för variabler och atomer att existera i. Det finns två delar av detta, att under\-söka uttrycks riktighet mot miljön och att und\-er\-söka uttrycks riktighet mot varandra samt miljön.
+Den första delen i att skriva en metainterpretator för Erlang är att bygga upp miljön för variabler och atomer att existera i. Det finns två delar av detta, att under\-söka uttrycks riktighet mot miljön och att und\-er\-söka uttrycks riktighet mot varandra samt miljön.
 
 \subsubsection{Undersökning av Uttryck}
-Den mesta av koden för att undersöka uttryck är skriven i funktionen \texttt{eval_expr} som ingår i kursen id1019s seminariehäften. Hur baskoden är utformad syns på \url{http://people.kth.se/~johanmon/courses/id1019/seminars/interpreter.pdf}. Uppdateringarna som gjordes med hänsyn till baskoden var utöver att helt enkelt komplettera med variabelnamn på rätt ställen att se till så att \lstinline$eval_expr({cons, Head, Tail}, Env)$ sker rekursivt och undersöker hela listan samt bygger upp en vettig svarsstruktur samt att skapa funktionen \texttt{find_in_env} som rekurserar miljön för att hitta värdet på en variabel i miljön (och returnera \texttt{false} ifall värdet inte existerar i miljön).
+Den mesta av koden för att undersöka uttryck är skriven i funktionen \texttt{eval_expr/2} som ingår i kursen id1019s seminariehäften.\footnote{Hur baskoden är utformad syns på \url{http://people.kth.se/~johanmon/courses/id1019/seminars/interpreter.pdf}}. Uppdateringarna som gjordes på baskoden var utöver att komplettera med variabelnamn där de saknades var att se till så att liststrukturen \lstinline$eval_expr({cons, Head, Tail}, Env)$ sker rekursivt och undersöker hela listan samt bygger upp en vettig svarsstruktur. Utöver detta skapades funktionen \texttt{find_in_env/2} som rekurserar i en miljö env för att hitta värdet på en given variabel i miljön eller false om variabeln saknas.
 
-\subsubsection{Evaluera Matchningar}
-För att undersöka om två värden matchar varann används funktionen \texttt{eval_match} som undersöker om olika värden är lika varann. \texttt{eval_match} bygger till stor del på liknande kod som \texttt{eval_expr}, men då den dels jämför två uttryck med varandra samt returnerar hela miljön varje gång den körs så kan den användas för att uppdatera miljön (d.v.s. deklarera variabler) och undersöka om två uttryck är likvärdiga.
+\subsubsection{Evaluera Mönstermatchningar}
+För att undersöka om två värden matchar varann skapades funktionen \texttt{eval_match/3} som undersöker om olika värden är lika varann. \texttt{eval_match} bygger till stor del på liknande kod som \texttt{eval_expr}, men då den dels jämför två uttryck med varandra samt returnerar hela miljön varje gång den körs så kan den användas för att uppdatera miljön (d.v.s. deklarera variabler) och undersöka om två uttryck är likvärdiga.
 
-Det blir en ganska enkel implementation där den mest komplicerade delen är att en variabel som inte finns i miljön ska läggas till i miljön som definierad till det variabeln matchas mot.
+Det blir en ganska simpel implementation där den mest komplexa delen är att en variabel som inte finns i miljön ska läggas till i miljön som definierad till det värdet variabeln matchas mot.
 
 \subsection{Sekvenshantering}
-Sekvenser är grunden för sekventiell programmering, vilket i sin tur är grunden för all programmering --- så hantering av sekvenser är en viktig del av metainterpretatorn. Sekvenshanteringen i metainterpretatorn sköts av funktionen \texttt{eval_seq} som agerar på en lista med uttryck för att antingen undersöka ett uttryck (med hjälp av \texttt{eval_expr}) eller att göra en matchning (och/eller deklaration) med \texttt{eval_match}.
-
-Lite regler för sekvenshanteringen är:
+Sekvenshanteringen i metainterpretatorn sköts av funktionen \texttt{eval_seq/2} som agerar på en lista med uttryck för att antingen undersöka ett uttryck (med hjälp av \texttt{eval_expr}) eller att göra en matchning (och/eller deklaration) med \texttt{eval_match}. Lite grundregler för sekvenshanteringen är:
 
 \begin{itemize}
 \item Alla sekvenser avslutas med en evaluering av ett uttryck
 \item En evaluering av ett uttryck får inte ha en svans
-\item Alla matchningar uppdaterar sekvensens miljö
-\item En misslyckad matchning orskar sekvensen att inte fortsätta vidare
+\item Alla matchningar uppdaterar sekvensens miljö\footnote{Miljön behöver inte förändras}
+\item En sekvens får inte fortsätta efter en misslyckad matchning
 \end{itemize}
+
+Funktionen \texttt{eval/1} skapades för att starta en \texttt{eval_seq}-sekvens i en tom miljö, och syftar till att vara ingångspunkten för all evaluering av kod skriven för språket.
 
 \subsection{Case/Switch-implementation}
 \label{subsec:caseswitch}
-En logisk utveckling av metainterpretatorn är en villkorad flervägsstruktur, som i Erlang finns implementerad som \texttt{case}-satser. Principen är att under\-söka värdet i en variabel \textit{X} mot ett villkor och sedan gå vidare antingen till att exekvera sekvensen det villkoret anger ifall villkoret uppfylls, eller att gå vidare till nästa villkor. När det inte finns några vidare villkor att undersöka så har \texttt{case}-satsen misslyckats och ska skicka ett fel\-meddel\-ande.
+En utveckling av metainterpretatorn är en villkorad flervägsstruktur, som i Erlang finns implementerad som \texttt{case}-satser. Principen är att under\-söka värdet i en variabel \textit{X} mot ett villkor och sedan gå vidare antingen till att exekvera en till villkoret tillhörande sekvens om villkoret uppfylls, eller att gå vidare till nästa villkor. När det inte finns några vidare villkor att undersöka så har \texttt{case}-satsen misslyckats och returnerar ett fel\-meddel\-ande. En \texttt{case}-sats skrivs i Erlang som nedan:
 
-\begin{lstlisting}
+\begin{lstlisting}[caption={\texttt{case}-sats i Erlang},label=lst:case]
 case X of
-    a -> sequenceA;
-    b -> sequenceB
+	A -> <seqA>;
+	b -> <seqB>;
+	_ -> <defaultSeq>
 end.
 \end{lstlisting}
 
-Motsvarande struktur i metainterpretatorn skulle kunna representeras som \\ \lstinline${switch, {var, x}, {cons, {a, sequenceA}, {cons, {b, sequenceB}, {atm, []}}}}$ eller \lstinline${switch, Expression, ConsOfConditions}$ för en likvärdig flexibilitet som Erlangs implementation.
+Motsvarande struktur i metainterpretatorn kan representeras som \\ \lstinline${switch, {var, x}, {cons, {a, sequenceA}, {cons, {b, sequenceB}, {atm, []}}}}$ eller \lstinline${switch, Expression, ConsOfConditions}$ för fungera liknande Erlangs implementation.
 
-Genom att evaluera \textit{X} får vi ut värdet som ska matchas mot villkoren som anges i en tuple \lstinline${villkor, sekvens}$ innuti en \texttt{cons} med hjälp av funktionen \texttt{eval_match}.
-
-Vid implementationen av \texttt{switch}-strukturen finns det två separata fall att ta hänsyn till:
+Genom att evaluera \textit{X} får vi ut värdet som ska matchas mot villkoren som anges i en tuple \lstinline${villkor, sekvens}$ innuti en \texttt{cons} med hjälp av funktionen \texttt{eval_match}. Vid implementationen av \texttt{switch}-strukturen finns det två separata fall att ta hänsyn till:
 
 \begin{enumerate}
 \item Att börja med så är det viktigt att vår \texttt{switch}-sats returnerar \texttt{fail} om den stöter på \texttt{atm, []} (slutet på listan) som villkor, detta görs med pattern-matchingen \lstinline$eval_switch({_, _, {atm, []}}, _)$
-\item Vidare så används \\\lstinline$eval_switch({switch, Exp, {cons, {Comp, Seq}, Tail}}, Env)$\\ för att tolka giltiga switch-satser, där \texttt{Comp} anger komparatorn som jämförs med \texttt{Exp} och \texttt{Seq} är sekvensen som ska utföras och returnera ifall att \texttt{Exp} och \texttt{Comp} inte returnerar \texttt{fail} från \texttt{eval_match}.
+\item Vidare så används \lstinline$eval_switch({switch, Exp, {cons, {Comp, Seq}, Tail}}, Env)$\\ för att tolka giltiga switch-satser, där \texttt{Comp} anger komparatorn som jämförs med \texttt{Exp} och \texttt{Seq} är sekvensen som ska utföras och returnera ifall att \texttt{Exp} och \texttt{Comp} inte returnerar \texttt{fail} från \texttt{eval_match}.
 \end{enumerate}
 
-Vidare så görs en variant för signaturer där det inte finns en \texttt{cons} utan endast en \lstinline|{Comp, Seq}|-kondition, där denna kondition utvecklas till \lstinline|{cons, {Comp, Seq}, {atm, []}}| för att möjlliggöra för enklare programmering.
+En ytterligare utveckling av \texttt{switch}-satsen kan göras med en variant för signaturer där det inte finns en \texttt{cons} utan endast som ett \lstinline|{Comp, Seq}|-villkor, där detta villkor kan utvecklas till \lstinline|{cons, {Comp, Seq}, {atm, []}}| för att möjlliggöra för enklare programmering.
 
 \subsubsection{Uppdatering av \texttt{eval_expr}, \texttt{eval_match} samt \texttt{eval_seq}}
 
@@ -103,17 +102,9 @@ Principen är att använda \texttt{eval_switch} för att evaluera alla ställen 
 
 \section{Utvärdering}
 
-Det grundläggande språket kan beskrivas med hjälp av en tämligen enkel grammatik som beskrivs i grammatik \ref{Gra:microerl}. Språket skiljer sig väsentligt utseendemässigt från Erlang, men då principerna bakom språket är i stort sett likvärdiga så kan man notera att konstruktionen med enkelhet skulle kunna användas tillsammans med en grammatiktolk som översätter från ett mer människovänligt format till det formatet som används i det i rapporten beskrivna språket.
+Metainterpretatorns språk kan beskrivas med hjälp av en tämligen enkel grammatik som beskrivs i Grammatik \ref{Gra:microerl}. Språket skiljer sig väsentligt utseendemässigt från Erlang, men då principerna bakom språket är i stort sett likvärdiga så kan man notera att konstruktionen med enkelhet skulle kunna användas tillsammans med en grammatiktolk som översätter från ett människovänligt format (exempelvis Erlang-syntax) till det formatet som används i det i rapporten beskrivna språket.
 
-\lstinline$A = 5$ skulle kunna översättas till \lstinline$eval_match({match, {var, a}, {atm, 5}}, Env)$ och
-\begin{lstlisting}
-case X of
-	A -> <seqA>;
-	b -> <seqB>;
-	_ -> <defaultSeq>
-end.
-\end{lstlisting}
-skulle kunnas översättas till \lstinline$eval_switch({switch, {var, X}, {cons, {{var, a}, <seqA>}, {cons, {{atm, b}, <seqB>}, {ignore, <defaultSeq>}}}}, Env)$ enligt syntaxen angedd i sektion \ref{subsec:caseswitch}.
+\lstinline$A = 5$ skulle kunna översättas till \lstinline$eval_match({match, {var, a}, {atm, 5}}, Env)$ och \texttt{case}-satsen i listing \ref{lst:case} skulle kunnas översättas till \lstinline$eval_switch({switch, {var, X}, {cons, {{var, a}, <seqA>}, {cons, {{atm, b}, <seqB>}, {ignore, <defaultSeq>}}}}, Env)$ om man följer \texttt{switch}-satsgrammatiken angedd i sektion \ref{subsec:caseswitch}.
 
 \begin{Grammar}
 \begin{grammar}
@@ -130,9 +121,7 @@ skulle kunnas översättas till \lstinline$eval_switch({switch, {var, X}, {cons,
 
 <switch_stmt> ::= '\{' <pattern> ',' <sequence> '\}'
 \alt '\{cons,' <switch_stmt> ',' <switch_stmt> '\}'
-\alt <null>
-
-<null> ::= '\{atm, []\}'
+\alt '\{atm, []\}'
 
 <cons> ::= '\{cons,' <expression> ',' <expression> '\}'
 
@@ -144,7 +133,7 @@ skulle kunnas översättas till \lstinline$eval_switch({switch, {var, X}, {cons,
 <sequence> ::= '[' <expression> ']'
 	\alt '[' <match> ',' <sequence> ']'
 \end{grammar}
-\caption{Beskrivning av $\mu$Erlang}
+\caption{Beskrivning av metainterpretatorns grammatik}
 \label{Gra:microerl}
 \end{Grammar}
 
