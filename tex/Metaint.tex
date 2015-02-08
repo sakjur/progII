@@ -7,8 +7,17 @@
 \usepackage[parfill]{parskip}
 \usepackage{color}
 \usepackage{syntax}
+\usepackage{newfloat}
+\usepackage{microtype}
 
 \definecolor{codebg}{rgb}{.9,.9,.9}
+
+\DeclareFloatingEnvironment[
+  fileext   = logr,
+  listname  = {Lista över Grammatik},
+  name      = Grammatik,
+ % placement = htp
+]{Grammar}
 
 \lstset{
 	language=erlang,
@@ -22,7 +31,8 @@
 	backgroundcolor=\color{codebg}
 }
 
-\hyphenation{prestanda-vinster antingen}
+\hyphenpenalty=900
+\hyphenation{prestanda-vinster antingen ut-formad funk-tion-en grunden inter-pretator}
 
 \title{Metainterpretator $\mu$Erlang}
 \author{Emil Tullstedt}
@@ -38,7 +48,31 @@ Uppgiftens går ut på att färdigställa, expandera och analysera en interpreta
 
 \section{Ansats}
 
+\subsection{Bygga upp Världen}
+Den första delen i att skriva en metainterpretator för Erlang är att möjlliggöra för att bygga upp miljön för variabler och atomer att existera i. Det finns två delar av detta, att under\-söka uttrycks riktighet mot miljön och att und\-er\-söka uttrycks riktighet mot varandra samt miljön.
+
+\subsubsection{Undersökning av Uttryck}
+Den mesta av koden för att undersöka uttryck är skriven i funktionen \texttt{eval_expr} som ingår i kursen id1019s seminariehäften. Hur baskoden är utformad syns på \url{http://people.kth.se/~johanmon/courses/id1019/seminars/interpreter.pdf}. Uppdateringarna som gjordes med hänsyn till baskoden var utöver att helt enkelt komplettera med variabelnamn på rätt ställen att se till så att \lstinline$eval_expr({cons, Head, Tail}, Env)$ sker rekursivt och undersöker hela listan samt bygger upp en vettig svarsstruktur samt att skapa funktionen \texttt{find_in_env} som rekurserar miljön för att hitta värdet på en variabel i miljön (och returnera \texttt{false} ifall värdet inte existerar i miljön).
+
+\subsubsection{Evaluera Matchningar}
+För att undersöka om två värden matchar varann används funktionen \texttt{eval_match} som undersöker om olika värden är lika varann. \texttt{eval_match} bygger till stor del på liknande kod som \texttt{eval_expr}, men då den dels jämför två uttryck med varandra samt returnerar hela miljön varje gång den körs så kan den användas för att uppdatera miljön (d.v.s. deklarera variabler) och undersöka om två uttryck är likvärdiga.
+
+Det blir en ganska enkel implementation där den mest komplicerade delen är att en variabel som inte finns i miljön ska läggas till i miljön som definierad till det variabeln matchas mot.
+
+\subsection{Sekvenshantering}
+Sekvenser är grunden för sekventiell programmering, vilket i sin tur är grunden för all programmering --- så hantering av sekvenser är en viktig del av metainterpretatorn. Sekvenshanteringen i metainterpretatorn sköts av funktionen \texttt{eval_seq} som agerar på en lista med uttryck för att antingen undersöka ett uttryck (med hjälp av \texttt{eval_expr}) eller att göra en matchning (och/eller deklaration) med \texttt{eval_match}.
+
+Lite regler för sekvenshanteringen är:
+
+\begin{itemize}
+\item Alla sekvenser avslutas med en evaluering av ett uttryck
+\item En evaluering av ett uttryck får inte ha en svans
+\item Alla matchningar uppdaterar sekvensens miljö
+\item En misslyckad matchning orskar sekvensen att inte fortsätta vidare
+\end{itemize}
+
 \subsection{Case/Switch-implementation}
+\label{subsec:caseswitch}
 En logisk utveckling av metainterpretatorn är en villkorad flervägsstruktur, som i Erlang finns implementerad som \texttt{case}-satser. Principen är att under\-söka värdet i en variabel \textit{X} mot ett villkor och sedan gå vidare antingen till att exekvera sekvensen det villkoret anger ifall villkoret uppfylls, eller att gå vidare till nästa villkor. När det inte finns några vidare villkor att undersöka så har \texttt{case}-satsen misslyckats och ska skicka ett fel\-meddel\-ande.
 
 \begin{lstlisting}
@@ -48,12 +82,40 @@ case X of
 end.
 \end{lstlisting}
 
-Motsvarande struktur i metainterpretatorn skulle kunna representeras som \\ \lstinline${switch, {var, x}, {cons, {a, sequenceA}, {cons, {b, sequenceB}, {atm, []}}}}$ för en likvärdig flexibilitet som Erlangs implementation.
+Motsvarande struktur i metainterpretatorn skulle kunna representeras som \\ \lstinline${switch, {var, x}, {cons, {a, sequenceA}, {cons, {b, sequenceB}, {atm, []}}}}$ eller \lstinline${switch, Expression, ConsOfConditions}$ för en likvärdig flexibilitet som Erlangs implementation.
 
 Genom att evaluera \textit{X} får vi ut värdet som ska matchas mot villkoren som anges i en tuple \lstinline${villkor, sekvens}$ innuti en \texttt{cons} med hjälp av funktionen \texttt{eval_match}.
 
+Vid implementationen av \texttt{switch}-strukturen finns det två separata fall att ta hänsyn till:
+
+\begin{enumerate}
+\item Att börja med så är det viktigt att vår \texttt{switch}-sats returnerar \texttt{fail} om den stöter på \texttt{atm, []} (slutet på listan) som villkor, detta görs med pattern-matchingen \lstinline$eval_switch({_, _, {atm, []}}, _)$
+\item Vidare så används \\\lstinline$eval_switch({switch, Exp, {cons, {Comp, Seq}, Tail}}, Env)$\\ för att tolka giltiga switch-satser, där \texttt{Comp} anger komparatorn som jämförs med \texttt{Exp} och \texttt{Seq} är sekvensen som ska utföras och returnera ifall att \texttt{Exp} och \texttt{Comp} inte returnerar \texttt{fail} från \texttt{eval_match}.
+\end{enumerate}
+
+Vidare så görs en variant för signaturer där det inte finns en \texttt{cons} utan endast en \lstinline|{Comp, Seq}|-kondition, där denna kondition utvecklas till \lstinline|{cons, {Comp, Seq}, {atm, []}}| för att möjlliggöra för enklare programmering.
+
+\subsubsection{Uppdatering av \texttt{eval_expr}, \texttt{eval_match} samt \texttt{eval_seq}}
+
+För att stödja \texttt{switch}-strukturen behövs en mindre uppdatering av \texttt{eval_expr}, \texttt{eval_match} samt \texttt{eval_seq} för att hantera att kunna evaluera \texttt{switch}-strukturer som en ytterligare \textsc{expression} utöver atomer, variabler och \texttt{cons}-listor.
+
+Principen är att använda \texttt{eval_switch} för att evaluera alla ställen där switch-används för att få fram en av de övriga utrycken för att sedan nyttja det värdet för att gå vidare med den angivna operationen.
+
 \section{Utvärdering}
 
+Det grundläggande språket kan beskrivas med hjälp av en tämligen enkel grammatik som beskrivs i grammatik \ref{Gra:microerl}. Språket skiljer sig väsentligt utseendemässigt från Erlang, men då principerna bakom språket är i stort sett likvärdiga så kan man notera att konstruktionen med enkelhet skulle kunna användas tillsammans med en grammatiktolk som översätter från ett mer människovänligt format till det formatet som används i det i rapporten beskrivna språket.
+
+\lstinline$A = 5$ skulle kunna översättas till \lstinline$eval_match({match, {var, a}, {atm, 5}}, Env)$ och
+\begin{lstlisting}
+case X of
+	A -> <seqA>;
+	b -> <seqB>;
+	_ -> <defaultSeq>
+end.
+\end{lstlisting}
+skulle kunnas översättas till \lstinline$eval_switch({switch, {var, X}, {cons, {{var, a}, <seqA>}, {cons, {{atm, b}, <seqB>}, {ignore, <defaultSeq>}}}}, Env)$ enligt syntaxen angedd i sektion \ref{subsec:caseswitch}.
+
+\begin{Grammar}
 \begin{grammar}
 <expression> ::= <atom>
 \alt <variable>
@@ -82,8 +144,11 @@ Genom att evaluera \textit{X} får vi ut värdet som ska matchas mot villkoren s
 <sequence> ::= '[' <expression> ']'
 	\alt '[' <match> ',' <sequence> ']'
 \end{grammar}
+\caption{Beskrivning av $\mu$Erlang}
+\label{Gra:microerl}
+\end{Grammar}
 
 \section{Sammanfattning}
-
+Sammanfattningsvis så var det både en utmaning och förvånandsvärt okomplicerat att skriva en implementation av språket i grammatik \ref{Gra:microerl}. En av de mer komplicerade detaljerna var en viss otydlighet i hur \texttt{cons} skulle mönstermatchas och att lista ut att \texttt{switch} som beskrivs i sektion \ref{subsec:caseswitch} skulle hanteras på samma sätt som om det vore ytterligare ett utryck snarare än en sekvens.
 
 \end{document}
