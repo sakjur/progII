@@ -1,0 +1,26 @@
+-module(dinner).
+-export([start/0]).
+
+start() ->
+    spawn(fun() -> init() end).
+
+init() ->
+    C1 = chopstick:start(),
+    C2 = chopstick:start(),
+    C3 = chopstick:start(),
+    Ctrl = self(),
+    philosopher:start(5, C1, C2, "Arendt", Ctrl),
+    philosopher:start(5, C2, C3, "Hypatia", Ctrl),
+    philosopher:start(5, C3, C1, "Simone", Ctrl),
+    wait(5, [C1, C2, C3]).
+
+wait(0, Chopsticks) ->
+    lists:foreach(fun(C) -> chopstick:quit(C) end, Chopsticks);
+wait(N, Chopsticks) ->
+    receive
+        done ->
+            wait(N-1, Chopsticks);
+        abort ->
+            exit(abort)
+    end.
+
