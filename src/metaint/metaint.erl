@@ -1,6 +1,6 @@
 -module(metaint).
 
--export([eval/1]).
+-export([eval/1, eval_lambda/2, eval_apply/2]).
 
 eval_expr({atm, Id}, _) ->
     {ok, Id};
@@ -13,6 +13,12 @@ eval_expr({var, Id}, Env) ->
     end;
 eval_expr({switch, _, _} = Stmt, Env) ->
     eval_switch(Stmt, Env);
+eval_expr({lambda, _, _, _} = Stmt, Env) ->
+    eval_lambda(Stmt, Env);
+eval_expr({abs, _, _, _} = Stmt, Env) ->
+    Stmt;
+eval_expr({apply, _, _} = Stmt, Env) ->
+    eval_apply(Stmt, Env);
 eval_expr({cons, Var, Next}, Env) ->
     case eval_expr(Var, Env) of
         error ->
@@ -93,6 +99,34 @@ eval_switch({switch, Exp, {cons, {Comp, Seq}, Tail}}, Env) ->
                 {ok, NEnv} ->
                     eval_seq(Seq, NEnv)
             end
+    end.
+
+eval_lambda({lambda, Free, Param, Seq}, Env) ->
+    case lookup_free(Free, Env) of
+        error -> error;
+        Closure -> {abs, Param, Seq, Closure}
+    end.
+
+eval_apply({apply, Expr, Args}, Env) ->
+    case eval_expr(Expr, Env) of
+        {abs, Param, Seq, Closure} ->
+            Nenv = eval_args(Args, Param, Closure),
+            eval_seq(Seq, Nenv);
+        _ -> error
+    end.
+
+eval_args([], [], Closure) -> Closure;
+eval_args([ArgH | ArgT], [ParamH | ParamT], Closure) ->
+    case eval_match({var, ArgH}, ParamH, []) of
+        {ok, [Var]} -> [Var | eval_args(ArgT, ParamT, Closure)];
+        _ -> error
+    end.
+
+lookup_free([], _) -> [];
+lookup_free([FreeHead | Tail], Env) ->
+    case find_in_env(FreeHead, Env) of
+        false -> error;
+        Var -> [Var | lookup_free(Tail, Env)]
     end.
 
 eval(Seq) ->
