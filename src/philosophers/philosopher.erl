@@ -16,9 +16,12 @@ start(Hungry, R, L, Name, Ctrl) ->
     spawn_link(fun() -> dreaming(Philosopher) end).
 
 dreaming(Philosopher) ->
-    sleep(450, 250),
+    sleep(50, 50),
     wakeup(Philosopher).
 
+wakeup(Philosopher = #philosopher{hungry=0}) -> 
+    io:format("~s is full.~n", [Philosopher#philosopher.name]),
+    done;
 wakeup(Philosopher) ->
     Name = Philosopher#philosopher.name,
     L = Philosopher#philosopher.l,
@@ -43,19 +46,11 @@ eating(Philosopher) ->
     L = Philosopher#philosopher.l,
     R = Philosopher#philosopher.r,
     Hunger = Philosopher#philosopher.hungry,
-    case Hunger of
-        0 -> 
-            chopstick:return(R),
-            chopstick:return(L),
-            io:format("~s is full.~n", [Name]),
-            done;
-        _ ->
-            sleep(700, 250),
-            io:format("~s has eaten.~n", [Name]),
-            chopstick:return(R),
-            chopstick:return(L),
-            dreaming(Philosopher#philosopher{hungry=Hunger-1})
-        end.
+    sleep(700, 250),
+    io:format("~s has eaten.~n", [Name]),
+    chopstick:return(R),
+    chopstick:return(L),
+    dreaming(Philosopher#philosopher{hungry=Hunger-1}).
 
 sleep(T, D) ->
     random:seed(now()),
