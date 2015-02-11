@@ -1,0 +1,93 @@
+%% En enkel mall för att skapa en labb-raport.
+\documentclass[a4paper, 11pt]{article}
+\usepackage[utf8]{inputenc} 
+\usepackage[swedish]{babel}
+\usepackage{listings}
+\usepackage[colorlinks=true]{hyperref}
+\usepackage[parfill]{parskip}
+\usepackage{color}
+\usepackage{syntax}
+\usepackage{newfloat}
+\usepackage{microtype}
+\usepackage{amsmath}
+
+\definecolor{codebg}{rgb}{.9,.9,.9}
+
+\DeclareFloatingEnvironment[
+  fileext   = logr,
+  listname  = {Lista över Grammatik},
+  name      = Grammatik,
+ % placement = htp
+]{Grammar}
+
+\lstset{
+	language=erlang,
+	basicstyle=\footnotesize\ttfamily,
+	numbers=left,
+	breaklines=true,
+	frame=r,
+	captionpos=b,
+	showstringspaces=false,
+	escapeinside={@*}{*@},
+	backgroundcolor=\color{codebg}
+}
+
+\hyphenpenalty=900
+\hyphenation{prestanda-vinster antingen ut-formad funk-tion-en grunden inter-pretator uppgiftsdeklarationen}
+
+\title{Filosoferande Filosofer}
+\author{Emil Tullstedt \href{mailto:emiltu@kth.se}{$<$emiltu@kth.se$>$}}
+\date{2015-02-11}
+
+\begin{document}
+
+\maketitle
+
+\section{Uppgiften}
+\label{sec:uppgiften}
+
+Sovande filosofer är ett logiskt problem där man har ett mängd filosofer $\mathcal{P}$ i dvala omkring ett runt matbord med lika många ätpinnar $\mathcal{C}$. Varje filosof $\mathcal{P}_n$ har en ätpinne $\mathcal{C}_n$ till vänster och en ätpinne $\mathcal{C}_{(n+1\mod |\mathcal{C}|)}$ till höger. Det betyder att för varje ätpinne $\mathcal{C}_n$ finns det två filosofer som har tillgång till ätpinnen. När filosoferna lämnar sin dvala för att äta så behöver de använda båda ätpinnarna. Problemet uppstår när två filsofer bredvid varann bestämmer sig för att äta samtidigt.
+
+Uppgiften som den här rapporten avhandlar är en implementation av problemet med viss analys samt ett försök till att lösa problemet med att filosoferna fastnar i att hålla i en ätpinne utan att någonsin få tag i den andra ätpinnen (en s.k. \textit{deadlock})
+
+\section{Ansats}
+
+\subsection{Chopstick}
+\label{subsec:chopstick}
+Modulen \texttt{chopstick} som hanterar ätpinnar är mestadels tillhandahållen i uppgiftsdeklarationen\footnote{philsophers.pdf 50KiB \url{http://web.it.kth.se/~johanmon/courses/id1019/seminars/philosophers.pdf}} och kommer inte att avhandlas i större utsträckning här. En chopstick motsvarar en ätpinne och kan ha två stadier, antingen är chopsticken \textbf{upptagen} eller så är den \textbf{tillgänglig}. Implementationen av det här sker genom att ha två funktioner (en för tillgängliga pinnar och en för upptagna) i en \texttt{receive}-loop där de väntar på meddelanden och byter status när ätpinnen får en viss förfrågan.
+
+Vidare så implementeras funktionerna \texttt{request/1}, \texttt{return/1} och \texttt{exit/1} (alla med en chopsticks processidentifierare som inparameter) som möjlliggör för abstraktion av chopsticks genom att skicka signalerna via de funktionerna istället för direkt som signaler.
+
+\subsection{Philosopher}
+\label{subsec:philosopher}
+\texttt{philsopher} är modulen som hanterar filosofer. En filosof i sin grundimplementation är autonom (filosofen har efter initiatilisering ingen hänsyn till användarinmatningar eller medvetenhet om andra filosofer) och ganska dum (filosofen lägger inte tillbaka en ätpinne när filosofen inte får tag i bägge ätpinnarna).
+
+För att förenkla implementationen av \texttt{philosopher} skapas för syftet med strukturerad datatillgänglighet en s.k. \texttt{record} \texttt{\#philosopher} med fälten \\\lstinline${hungry, r, l, name, ctrl}$, där \texttt{r} och \texttt{l} är de två \texttt{chopstick}-processerna som \texttt{philsopher} använder för att representera sina ätpinnar.
+
+En \texttt{philosopher}-process har tre funktioner \texttt{dreaming/1}, \texttt{wakeup/1} samt \texttt{eating/1} som anger processens tillstånd (inparametern är alltid en \texttt{\#philosopher}-record som anger filosofens tillstånd) och två hjälpfunktioner \texttt{start/5} (som startar en process med funktionen \texttt{dreaming/1}) samt \texttt{sleep/2} som anges i uppgiftsdeklarationen.
+
+\subsubsection{Dreaming}
+Tillståndet \texttt{dreaming} väntar en tid med hjälp av \texttt{sleep/2} och går därefter till \texttt{wakeup}.
+
+\subsubsection{Wakeup}
+Tillståndet \texttt{wakeup} börjar med att undersöka om filosofens hunger är 0, isåfall så lämnar filosofen bordet och returnerar \texttt{done}. Om hungern inte är 0 så fortsätter filosofen med att försöka plocka upp ätpinnen \texttt{r} med hjälp av funktionen \texttt{chopstick:request/1}. Om filosofen får tag i ätpinnen \texttt{r} så försöker den plocka upp ätpinnen \texttt{l}. När filosofen har tillgång till bägge ätpinnarna så går den över till \texttt{eating}.
+
+\subsubsection{Eating}
+Eating börjar med att använda \texttt{sleep/2} för att vänta en tid, varpå filosofen lämnar tillbaka ätpinnarna \texttt{r} och \texttt{l} med hjälp av funktionen \texttt{chopstick:return/1} varpå filosofens hunger-nivå (\texttt{hungry} i recordet) sänks med ett och filosofen återgår till \texttt{dreaming}.
+
+\subsection{Dinner}
+Kontrollmodulen \texttt{dinner} definieras i sin grundutförning helt i uppgiftsdeklarationen, essentiellt sett så är \texttt{dinner}s enda uppgift att starta upp en viss mängd \texttt{chopstick}-processer och lika många \texttt{philosopher}-processer och sedan para ihop dem enligt konstruktionen angiven i sektion \ref{sec:uppgiften}.
+
+\subsection{Breaking the Deadlock}
+Då en filosof har plockat upp en ätpinne och försöker plocka upp en andra kan det uppstå en situation när ingen filosof någonsin får tag i bägge ätpinnarna och kan börja äta. Det här är ett s.k. \textit{deadlock} som behöver lösas. Med tanke på att \textit{plocka upp pinne} är implementerad via\texttt{chopstick:request/1} (se sektion \ref{subsec:chopstick}) så räcker det med att uppdatera hur den funktionen är implementerad för att komma loss från den låsta situationen. En inbyggd del av Erlangs \texttt{receive}-uttryck är att man kan ange \lstinline$after <milliseconds> -> <sequence>$ för att få Erlang att exekvera en sekvens efter ett givet antal millisekunder. Värdet \texttt{no} sänds tillbaka till anropsfunktionen \texttt{philosopher:wakeup/1} efter en mindre väntetid för att signalera att filosofen inte får tillgång till ätpinnen.
+
+Värdet \texttt{no} hanteras inte av \texttt{philosopher}-modulen från sektion \ref{subsec:philosopher} i det här läget, för att få den modifikationen att fungera kompletteras modulen med en \texttt{case}-sekvens för att hantera de olika värdena. Då ätpinnen \texttt{r} får en \texttt{request} först så fortsätter koden enbart till att försöka plocka upp \texttt{l} om \texttt{philosopher} får tillbaka \texttt{ok} från \texttt{chopstick:request/1}, i de fallen returvärdet istället är \texttt{no} återgår \texttt{philosopher} till \texttt{dreaming}-tillståndet.
+
+När ätpinnen \texttt{r} är upplockad så skickar \texttt{philosopher:wakeup/1} en förfrågan om \texttt{l}, som antingen returnerar \texttt{ok}, då programmet går vidare till \texttt{eating}, eller så returnerar förfrågan \texttt{no}, i vilket fall filosofen lämnar tillbaka \texttt{r} och sedan återgår till att sova.
+
+\section{Utvärdering}
+
+\section{Sammanfattning}
+En snabb sökning med Google visar att priset för ett par chopsticks är cirka \$0.1. Empiriska studier från Kista Galleria visar på att det sällan sker att en kund enbart får en ätpinne vid köp av måltid. Problemet löses bäst genom att komplettera så att varje filosof har två ätpinnar istället för en. 
+
+\end{document}

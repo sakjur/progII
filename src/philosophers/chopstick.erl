@@ -1,5 +1,4 @@
 -module(chopstick).
-
 -export([start/0, request/1, return/1, exit/1]).
 
 start() ->
