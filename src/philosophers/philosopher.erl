@@ -2,14 +2,7 @@
 
 -export([start/5]).
 
--record(philosopher,
-    {
-        hungry,
-        r,
-        l,
-        name,
-        ctrl
-    }).
+-record(philosopher, { hungry,  r, l, name, ctrl }).
 
 start(Hungry, R, L, Name, Ctrl) ->
     Philosopher = #philosopher{hungry=Hungry, r=R, l=L, name=Name, ctrl=Ctrl},
@@ -20,7 +13,7 @@ initialize(Philosopher) ->
     dreaming(Philosopher).
 
 dreaming(Philosopher) ->
-    sleep(500, 250),
+    sleep(50, 50),
     wakeup(Philosopher).
 
 wakeup(Philosopher) ->
@@ -54,7 +47,7 @@ eating(Philosopher) ->
     Name = Philosopher#philosopher.name,
     L = Philosopher#philosopher.l,
     R = Philosopher#philosopher.r,
-    sleep(700, 250),
+    sleep(200, 250),
     io:format("Has eaten: ~s ~n", [Name]),
     chopstick:return(R),
     chopstick:return(L),
@@ -63,7 +56,7 @@ eating(Philosopher) ->
     case Hunger of
         0 -> 
             io:format("Full: ~s ~n", [Name]), 
-            Philosopher#philosopher.ctrl ! done
+            Philosopher#philosopher.ctrl ! done,
             done;
         _ ->
             dreaming(Philosopher#philosopher{hungry=Hunger})
@@ -71,5 +64,7 @@ eating(Philosopher) ->
 
 sleep(T, D) ->
     RandVal = random:uniform(D),
-    timer:sleep(T + RandVal).
+    Time = T + RandVal,
+    % io:format("Sleeping ~w ms ~n", [Time]),
+    timer:sleep(Time).
 

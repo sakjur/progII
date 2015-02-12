@@ -9,6 +9,8 @@ available() ->
         {request, From} ->
             From ! {granted, self()},
             gone(); 
+        return ->
+            available();
         quit ->
             ok
     end.
@@ -17,6 +19,8 @@ gone() ->
     receive
         return ->
             available();
+        {request, _} ->
+            gone(); 
         quit ->
             ok
     end.
@@ -28,7 +32,7 @@ granted() ->
     receive
         {granted, Value} ->
             {ok, Value}
-    after 1000 ->
+    after 500 ->
             no 
     end.
 

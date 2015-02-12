@@ -3,7 +3,7 @@
 
 timedrun() ->
     T1 = now(),
-    loop(10, fun() -> init() end),
+    loop(2, fun() -> init() end),
     T2 = now(),
     timer:now_diff(T2, T1).
 
