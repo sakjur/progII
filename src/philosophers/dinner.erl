@@ -1,5 +1,17 @@
 -module(dinner).
--export([start/0]).
+-export([start/0, timedrun/0]).
+
+timedrun() ->
+    T1 = now(),
+    loop(10, fun() -> init() end),
+    T2 = now(),
+    timer:now_diff(T2, T1).
+
+loop(0, _) ->
+    ok;
+loop(N, Fun) ->
+    Fun(),
+    loop(N-1, Fun).
 
 start() ->
     spawn(fun() -> init() end).
@@ -18,7 +30,7 @@ init() ->
     philosopher:start(5, C4, C5, "Elizabeth", Ctrl),
     philosopher:start(5, C5, C1, "Ayn", Ctrl),
     Chopsticks = [C1, C2, C3, C4, C5],
-    wait(length(Chopsticks), Chopsticks).
+    wait(5, Chopsticks).
 
 wait(0, Chopsticks) ->
     lists:foreach(fun(C) -> chopstick:quit(C) end, Chopsticks);
