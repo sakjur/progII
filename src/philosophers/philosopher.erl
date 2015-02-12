@@ -16,7 +16,7 @@ start(Hungry, R, L, Name, Ctrl) ->
     spawn_link(fun() -> dreaming(Philosopher) end).
 
 dreaming(Philosopher) ->
-    sleep(50, 50),
+    sleep(500, 250),
     wakeup(Philosopher).
 
 wakeup(Philosopher = #philosopher{hungry=0}) -> 
@@ -27,14 +27,16 @@ wakeup(Philosopher) ->
     L = Philosopher#philosopher.l,
     R = Philosopher#philosopher.r,
     io:format("~s woke up.~n", [Name]),
-    case chopstick:request(R) of
-        ok -> 
-            case chopstick:request(L) of
-                ok -> 
+    chopstick:request(R),
+    chopstick:request(L),
+    case chopstick:granted() of
+        {ok, StickA} ->
+            case chopstick:granted() of
+                {ok, _} ->
                     io:format("~s got chopsticks~n", [Name]),
                     eating(Philosopher);
                 no ->
-                    chopstick:return(R),
+                    chopstick:return(StickA),
                     dreaming(Philosopher)
             end;
         no ->
