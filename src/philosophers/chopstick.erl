@@ -1,5 +1,5 @@
 -module(chopstick).
--export([start/0, request/1, return/1, quit/1]).
+-export([start/0, request/1, return/1, quit/1, granted/0]).
 
 start() ->
     spawn_link(fun() -> available() end).
@@ -22,10 +22,12 @@ gone() ->
     end.
 
 request(Stick) ->
-    Stick ! {request, self()},
+    Stick ! {request, self()}.
+
+granted() ->
     receive
-        {granted, _} ->
-            ok
+        {granted, Value} ->
+            {ok, Value}
     after 1000 ->
             no 
     end.

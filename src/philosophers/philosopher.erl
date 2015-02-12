@@ -27,18 +27,26 @@ wakeup(Philosopher) ->
     Name = Philosopher#philosopher.name,
     L = Philosopher#philosopher.l,
     R = Philosopher#philosopher.r,
-    io:format("Requests chopsticks: ~s ~n", [Name]),
-    case chopstick:request(R) of
-        ok ->
-        case chopstick:request(L) of
-            ok ->
-                io:format("~s got chopsticks~n", [Name]),
-                eating(Philosopher);
-            no ->
-                chopstick:return(R),
-                dreaming(Philosopher)
-        end;
+    chopstick:request(R),
+    chopstick:request(L),
+    io:format("Requested chopsticks: ~s ~n", [Name]),
+    case chopstick:granted() of
+        {ok, StickA} ->
+            case chopstick:granted() of
+                {ok, _} ->
+                    io:format("Chopsticks granted: ~s ~n", [Name]),
+                    eating(Philosopher);
+                no ->
+                    chopstick:return(StickA),
+                    dreaming(Philosopher)
+            end;
         no ->
+            case chopstick:granted() of
+                {ok, StickB} ->
+                    chopstick:return(StickB);
+                no ->
+                    na
+            end,
             dreaming(Philosopher)
     end.
 
@@ -55,7 +63,7 @@ eating(Philosopher) ->
     case Hunger of
         0 -> 
             io:format("Full: ~s ~n", [Name]), 
-            Philosopher#philosopher.ctrl ! done,
+            Philosopher#philosopher.ctrl ! done
             done;
         _ ->
             dreaming(Philosopher#philosopher{hungry=Hunger})
