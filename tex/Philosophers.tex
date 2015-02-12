@@ -85,9 +85,33 @@ Värdet \texttt{no} hanteras inte av \texttt{philosopher}-modulen från sektion 
 
 När ätpinnen \texttt{r} är upplockad så skickar \texttt{philosopher:wakeup/1} en förfrågan om \texttt{l}, som antingen returnerar \texttt{ok}, då programmet går vidare till \texttt{eating}, eller så returnerar förfrågan \texttt{no}, i vilket fall filosofen lämnar tillbaka \texttt{r} och sedan återgår till att sova.
 
+\subsection{Asynkrona Förfrågningar}
+Den asynkrona förfrågningen om pinnar möjlliggör för filosofen att försöka plocka upp bägge ätpinnar samtidigt, och på så sätt minska tidsåtgången framförallt då den "andra" pinnen är upptagen. Istället för att man får tag i första ätpinnen och sedan behöver vänta på den andra så kan en asynkron förfrågan se till att man så tidigt som möjligt hittar \texttt{no}. Implementationen av asynkrona förfrågningar påminner mycket om den för synkrona förfrågningar, med en viss skillnad i att \texttt{receive}-satsen för att hantera meddelanden läggs i en separat funktion från den som skickar signalen. På så sätt så skickas en signal först som sedan får ett svar placerat på kön. När vi läser meddelanden med hjälp av funktionen \texttt{granted/0} som hanterar \texttt{receive}-satsen så ser vi också till att returvärdet från meddelandet inkluderar \texttt{chopstick}-processid:n (genom att byta ut \texttt{granted} till \texttt{\{granted, PID\}}) för gällande ätpinne. På så sätt kan vi, om "första" chopsticken lyckas, men andra misslyckas, lägga tillbaka den första ätpinnen för att sedan gå tillbaka till \texttt{dreaming/1}, om tvärtom första chopsticken misslyckas, men andra lyckas, så behöver andra läggas tillbaka innan filosofen kan återgå till \texttt{dreaming/1}.
+
+Konceptet visade sig orsaka deadlocks, och försök att lösa systemet var inte lyckade.
+
 \section{Utvärdering}
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|r|r|r|}  
+\hline
+Tidsåtgång & Vänta på chopstick-tid & Sovtid & Ättid\\
+\hline
+Från uppgift & 50ms & 500 + $0 < r < 250$ & 500 + $0 < r < 750$\\
+\hline
+U.S. Constitution & $\sim$5 $s$ & $\sim$230 $ms$ & $\sim$500 $ms$\\
+\hline
+A Study In Scarlet & $\sim$319 $s$ & $\sim$3 $s$ & $\sim$7 $s$\\
+\hline
+A Study In Scarlet* & $\sim$5 $s$ & $\sim$3 $s$ & $\sim$7 $s$ \\
+\hline
+War \& Peace* & $\sim$5 $s$ & $\sim$46 $s$ & $\sim$87 $s$\\
+\hline
+\end{tabular}
+\caption{Lista över tidsåtgång för olika konfigurationer av programmet}
+\label{tab:timer}
+\end{table}
 
 \section{Sammanfattning}
-En snabb sökning med Google visar att priset för ett par chopsticks är cirka \$0.1. Empiriska studier från Kista Galleria visar på att det sällan sker att en kund enbart får en ätpinne vid köp av måltid. Problemet löses bäst genom att komplettera så att varje filosof har två ätpinnar istället för en. 
 
 \end{document}
