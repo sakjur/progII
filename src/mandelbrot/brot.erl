@@ -1,6 +1,8 @@
 -module(brot).
 -export([mandelbrot/2]).
 
+mandelbrot({cmplx, Real, Complex}, M) ->
+    mandelbrot({Real, Complex}, M);
 mandelbrot(C, M) ->
     {Real, Complex} = C,
     Z0 = cmplx:new(Real, Complex),

@@ -8,7 +8,7 @@
 
 ERL = erl -boot start_clean
 
-MODS = cmplx brot ppm
+MODS = cmplx brot ppm color mandel
 
 all: compile 
 
