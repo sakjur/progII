@@ -88,30 +88,46 @@ När ätpinnen \texttt{r} är upplockad så skickar \texttt{philosopher:wakeup/1
 \subsection{Asynkrona Förfrågningar}
 Den asynkrona förfrågningen om pinnar möjlliggör för filosofen att försöka plocka upp bägge ätpinnar samtidigt, och på så sätt minska tidsåtgången framförallt då den "andra" pinnen är upptagen. Istället för att man får tag i första ätpinnen och sedan behöver vänta på den andra så kan en asynkron förfrågan se till att man så tidigt som möjligt hittar \texttt{no}. Implementationen av asynkrona förfrågningar påminner mycket om den för synkrona förfrågningar, med en viss skillnad i att \texttt{receive}-satsen för att hantera meddelanden läggs i en separat funktion från den som skickar signalen. På så sätt så skickas en signal först som sedan får ett svar placerat på kön. När vi läser meddelanden med hjälp av funktionen \texttt{granted/0} som hanterar \texttt{receive}-satsen så ser vi också till att returvärdet från meddelandet inkluderar \texttt{chopstick}-processid:n (genom att byta ut \texttt{granted} till \texttt{\{granted, PID\}}) för gällande ätpinne. På så sätt kan vi, om "första" chopsticken lyckas, men andra misslyckas, lägga tillbaka den första ätpinnen för att sedan gå tillbaka till \texttt{dreaming/1}, om tvärtom första chopsticken misslyckas, men andra lyckas, så behöver andra läggas tillbaka innan filosofen kan återgå till \texttt{dreaming/1}.
 
-Konceptet visade sig orsaka deadlocks, och försök att lösa systemet var inte lyckade.
+Konceptet visade sig orsaka deadlocks, vilket kunde lösas genom att låta \texttt{available/0} och \texttt{gone/0} från \texttt{chopstick} (beskriven i sektion \ref{subsec:chopstick}) hantera även de ogiltiga fallen för att inte ha en meddelandekö som strular till \texttt{request/1}.
+
+\subsection{Servitör}
+En teoretisk implementation av en servitör vore att servitören håller i alla chopsticks och delar ut dem två och två med en egen \texttt{request}-funktion men nekar alla kunder som frågar om chopsticks när det inte finns några. Implementationen av en sådan servitör uteblev.
 
 \section{Utvärdering}
+
+Med funktionen \texttt{timedrun} angiven nedan kan man få ut körningen av en applikation i antalet sekunder, över ett specifierat antal gånger.
+\begin{lstlisting}
+	timedrun() ->
+		Times = 5,
+		T1 = now(),
+		loop(Times, fun() -> init() end),
+		T2 = now(),
+		timer:now_diff(T2, T1) / (1000000 * Times).
+\end{lstlisting}
+där loop rekursivt kallar på funktionen som anges till andra arumentet i funktionen.
+
+Resultatet av körningar med de här parametarna syns i tabellen \ref{tab:timer}. Alla filosofer försökte äta fem gånger under alla körningarna.
+
 \begin{table}[h]
 \centering
 \begin{tabular}{|l|r|r|r|}  
 \hline
-Tidsåtgång & Vänta på chopstick-tid & Sovtid & Ättid\\
+Tidsåtgång & Väntetid (ms) & Sovtid (ms) & Ättid (ms)\\
 \hline
-Från uppgift & 50ms & 500 + $0 < r < 250$ & 500 + $0 < r < 750$\\
+$\sim11$s & 900 & 500 + $0 < r < 250$ & 700 + $0 < r < 250$\\
 \hline
-U.S. Constitution & $\sim$5 $s$ & $\sim$230 $ms$ & $\sim$500 $ms$\\
+$\sim6$s & 900 & 500 + $0 < r < 250$ & 200 + $0 < r < 250$\\
 \hline
-A Study In Scarlet & $\sim$319 $s$ & $\sim$3 $s$ & $\sim$7 $s$\\
+$\sim8$s & 500 & 500 + $0 < r < 250$ & 200 + $0 < r < 250$\\
 \hline
-A Study In Scarlet* & $\sim$5 $s$ & $\sim$3 $s$ & $\sim$7 $s$ \\
-\hline
-War \& Peace* & $\sim$5 $s$ & $\sim$46 $s$ & $\sim$87 $s$\\
+$\sim9$s & 500 & 50 + $0 < r < 50$ & 200 + $0 < r < 250$\\
 \hline
 \end{tabular}
-\caption{Lista över tidsåtgång för olika konfigurationer av programmet}
+\caption{Lista över tidsåtgång för olika konfigurationer av programmet. $r$ är ett pseudoslumpmässigt genererat heltal}
 \label{tab:timer}
 \end{table}
 
 \section{Sammanfattning}
+Den klurigaste delen på uppgiften var att undvika de deadlocks som uppstår p.g.a. att messagekön blir fylld med meddelanden som tillhör en icke-längre existerande process på ett smidigt sätt. Det visade sig ha en enkel lösning i att bara släppa på ogiltiga förfrågningar. Slutresultatet blir att deadlocks är \textit{väldigt} otroliga och kräver att två filosofer får exakt samma seed. Alla filosofer kommer förr eller senare att få äta (i takt med att bredvidsittande filosofer blir mätta), men systemet är på intet sätt rättvist.
 
 \end{document}

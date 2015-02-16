@@ -2,10 +2,11 @@
 -export([start/0, timedrun/0]).
 
 timedrun() ->
+    Times = 5,
     T1 = now(),
-    loop(2, fun() -> init() end),
+    loop(Times, fun() -> init() end),
     T2 = now(),
-    timer:now_diff(T2, T1).
+    timer:now_diff(T2, T1) / (1000000 * Times).
 
 loop(0, _) ->
     ok;
