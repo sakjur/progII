@@ -8,13 +8,17 @@ mandelbrot(Width, Height, X, Y, K, Depth) ->
     rows(Width, Height, Trans, Depth, []).
 
 demo() ->
-    small(-2.6, 1.2, 1.6).
+    small(0.3, 0.5, 0.05).
+    %small(0.25, 0.001, 0.253). 
 
 small(X, Y, X1) ->
-    Width = 960,
-    Height = 540,
+    Width = 1920,
+    Height = 1080,
+    image(X, Y, X1, Width, Height).
+
+image(X, Y, X1, Width, Height) -> 
     K = (X1 - X)/Width,
-    Depth = 64,
+    Depth = 32,
     T0 = now(),
     Image = mandelbrot(Width, Height, X, Y, K, Depth),
     T = timer:now_diff(now(), T0),
