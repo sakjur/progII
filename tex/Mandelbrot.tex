@@ -78,6 +78,7 @@ Slutligen implementeras absolutvärdet $|C|\in \mathbb{R}^+$ av $C$. Absolutvär
 Addition, kvadrering och absolutvärde är alla operationer på komplexa tal som behövs för Mandelbrotmängden.
 
 \subsection{\texttt{brot}-modulen}
+\label{subsec:brot}
 Modulen \texttt{brot} innehåller två viktiga funktioner, \texttt{test} som undersöker om ett värde ingår i mandelbrotmängden och \texttt{checkN} som används för beräkningen tillhörande \texttt{test}.
 
 \texttt{checkN} är en hjälpfunktion till \texttt{test} som returnerar ett värde $0 \leq n < m$ beroende på om ett komplext tal $C$ ingår i Mandelbrotmängden. \texttt{test} är tillsammans med hjälpfunktionen \texttt{checkN} rekursiv funktion som beskrivs i ekvation \ref{equ:checkn} där värdet $I_n$ är det värdet som returneras när man kallar på \texttt{test} med ett värde $C$ och en maxmängd $m$.
@@ -85,7 +86,7 @@ Modulen \texttt{brot} innehåller två viktiga funktioner, \texttt{test} som und
 \begin{subequations}\label{equ:checkn}
 \begin{align}
 Z_{0} &= 0\\
-Z_{n} &= Z_{n-1} + C\\
+Z_{n} &= Z_{n-1}^2 + C\\
 I_n &= \begin{dcases}
 	0 & \text{för } |Z_n| < 2 \texttt{ och } n \geq m\\
 	I_{n+1} & \text{för } |Z_n| < 2\\
@@ -94,9 +95,13 @@ I_n &= \begin{dcases}
 \end{align}
 \end{subequations}
 
+Det finns utöver detta en funktion \texttt{mandelbrot/2} som används för att intialisera loopen för \texttt{text}-funktionen med en punkt och ett maxvärde.
+
 \subsection{\texttt{mandel}-modulen}
 
 \texttt{mandel} sköter tillsammans med \texttt{color} och \texttt{ppm}\footnote{\texttt{color} omvandlar tal till färgvärden och \texttt{ppm} en lista av listor till en bild, ingen av dessa avhandlas i rapporten} genereringen av en bild utifrån ett givet område i Mandelbrottmängden.
+
+Ett komplext tal $C_{x\times y}$ beräknas ett värde $I_c \in \mathbb{R}$ för varje pixel med hjälp av \texttt{brot:mandelbrot/2} från sektion \ref{subsec:brot}. Beräkningarna sker från höger till vänster samt nedifrån och upp på grund av att Erlang är bättre på att lägga till element i början av listor än i slutet. Med funktionen \texttt{color:convert/2} omvandlas talet $I_c$ till en färg som sedan modulen \texttt{ppm} skriver ut pixel för pixel i en \texttt{.ppm}-fil som lagras på hårddisken.
 
 \section{Utvärdering}
 
@@ -163,6 +168,6 @@ Olika områdens prestanda beror på faktorer där t.ex. bildpunkter som är när
 En intressant observation är att området i figur \ref{fig:B16d} och \ref{fig:B128d} är detsamma, och att de uppenbara skillnaderna mellan de figurerna beror helt på djupet. I de fallen när en åskådare observerar Mandelbrotmängden kan det vara intressant att manipulera djupinställningarna för att undersöka hur ett och samma område förändras baserat på hur djupt åskådaren undersöker området.
 
 \section{Sammanfattning}
-Uppgiften kändes på det stora taget inte särskilt utvecklande i förhållande från tidigare uppgifter, särskilt inte när raytracer-uppgiften redan hade avhandlats på ett seminarium. Det var en rolig uppgift, men tidsåtgången för själva uppgiften var minimal.
+Uppgiften kändes på det stora taget inte särskilt utvecklande i förhållande från tidigare uppgifter, särskilt inte när raytracer-uppgiften redan hade avhandlats på ett seminarium. Det stora problemet i uppgiften som dök upp var hur vyn skulle placeras på önskvärd plats med $\{X_0, X_1\}, Y$ koordinaterna.
 
 \end{document}
