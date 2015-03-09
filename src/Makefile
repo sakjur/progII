@@ -19,6 +19,7 @@ subdirs:
 	cd philosophers; $(MAKE)
 	cd Huffman; $(MAKE)
 	cd mandelbrot; $(MAKE)
+	cd webserver; $(MAKE)
 
 clean:
 	rm -rf *.beam erl_crash.dump
@@ -26,4 +27,5 @@ clean:
 	cd philosophers; $(MAKE) clean
 	cd Huffman; $(MAKE) clean
 	cd mandelbrot; $(MAKE) clean
+	cd webserver; $(MAKE) clean
 
