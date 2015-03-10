@@ -1,6 +1,5 @@
 -module(rudy).
 -export([init/1]).
--compile(export_all).
 
 init(Port) ->
     Opt = [list, {active, false}, {reuseaddr, true}],
@@ -23,16 +22,19 @@ handler(Listen) ->
     end.
 
 request(Client) ->
-    Recv = gen_tcp:recv(Client, 0),
-    case Recv of
-        {ok, Str} ->
-            Request = http:parse_request(Str),
-            Response = reply(Request),
-            gen_tcp:send(Client, Response);
-        {error, Error} ->
-            io:format("rudy: error ~w~n", [Error])
-    end,
-    gen_tcp:close(Client).
+    spawn(fun() ->
+        Recv = gen_tcp:recv(Client, 0),
+        case Recv of
+            {ok, Str} ->
+                Request = http:parse_request(Str),
+                Response = reply(Request),
+                gen_tcp:send(Client, Response);
+            {error, Error} ->
+                io:format("rudy: error ~w~n", [Error])
+        end,
+        gen_tcp:close(Client)
+    end),
+    ok.
 
 reply({{get, URI, _}, _, _}) ->
     timer:sleep(40),

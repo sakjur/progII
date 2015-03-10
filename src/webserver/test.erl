@@ -16,11 +16,11 @@ run(N, Host, Port) ->
     case N of
         0 -> ok;
         _ ->
-            request(Host, Port),
+            request(Host, Port, self()),
             run(N-1, Host, Port)
     end.
 
-request(Host, Port) ->
+request(Host, Port, Parent) ->
     Opt = [list, {active, false}, {reuseaddr, true}],
     Server = case gen_tcp:connect(Host, Port, Opt) of
         {ok, Str} -> Str;
@@ -34,5 +34,7 @@ request(Host, Port) ->
         {error, Error} ->
             io:format("test: error: ~w~n", [Error])
     end,
-    gen_tcp:close(Server).
+    gen_tcp:close(Server),
+    Parent ! ok.
+
 
