@@ -39,11 +39,11 @@ request(Client) ->
 reply({{get, URI, _}, _, _}) ->
     case file:read_file("content" ++ URI) of
         {ok, Entry} -> http:ok(Entry);
-        {error, enoent} -> http:not_found();
         {error, eisdir} -> 
             case file:read_file("content" ++ URI ++ "/index.html") of
                 {ok, Entry} -> http:ok(Entry);
                 {error, _} -> http:not_found()
-            end
+            end;
+        {error, _} -> http:not_found()
     end.
 
