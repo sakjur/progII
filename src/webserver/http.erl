@@ -1,5 +1,5 @@
 -module(http).
--export([parse_request/1, get/1, ok/1]).
+-export([parse_request/1, get/1, ok/1, not_found/0]).
 
 parse_request(R0) ->
     {Request, R1} = request_line(R0),
@@ -44,7 +44,19 @@ message_body(R) ->
     {R, []}.
 
 ok(Body) ->
-    "HTTP/1.1 200 OK\r\n" ++ "\r\n" ++ Body.
+    ok(Body, "").
+
+ok(Body, Headers) ->
+    "HTTP/1.1 200 OK\r\n" ++ Headers ++ server_headers() ++ "\r\n" ++ Body.
+
+not_found() ->
+    "HTTP/1.1 404 Not Found\r\n" ++ server_headers() ++ "\r\n 404 Not found".
+
+to_client(ResponseCode, Headers, Body) ->
+    ResponseCode ++ "\r\n" ++ Headers ++ "\r\n" ++ Body.
+
+server_headers() ->
+    "Server: rudy 2015-03-10\r\n".
 
 get(URI) ->
     "GET " ++ URI ++ " HTTP/1.1\r\n" ++ "\r\n".
