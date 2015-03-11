@@ -47,7 +47,15 @@ ok(Body) ->
     ok(Body, "").
 
 ok(Body, Headers) ->
-    "HTTP/1.1 200 OK\r\n" ++ Headers ++ server_headers() ++ "\r\n" ++ Body.
+    "HTTP/1.1 200 OK\r\n" 
+    ++ Headers
+    ++ server_headers() 
+    ++ "\r\n" 
+    ++ to_list(Body).
+
+to_list(Body) when is_binary(Body) ->
+    binary_to_list(Body);
+to_list(Body) -> Body.
 
 not_found() ->
     "HTTP/1.1 404 Not Found\r\n" ++ server_headers() ++ "\r\n 404 Not found".

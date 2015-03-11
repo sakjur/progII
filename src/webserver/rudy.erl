@@ -36,9 +36,9 @@ request(Client) ->
     end),
     ok.
 
-reply({{get, URI, _}, _, _}) ->
+reply({{get, [$/ | URI], _}, _, _}) ->
     timer:sleep(20),
-    case file:read_file("content" ++ URI) of
+    case file:read_file("content/" ++ URI) of
         {ok, Entry} -> http:ok(Entry);
         {error, eisdir} -> 
             case file:read_file("content" ++ URI ++ "/index.html") of
