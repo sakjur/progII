@@ -7,10 +7,30 @@ bench(Port) ->
 bench(Host, Port) ->
     bench(100, Host, Port).
 bench(N, Host, Port) -> 
+    bench(10, N, Host, Port, []).
+bench(0, _, _, _, Arr) ->
+    collector(Arr, []);
+bench(C, N, Host, Port, Arr) ->
+    Me = self(),
+    Cli = spawn(fun() -> client_runner(Me, N, Host, Port) end),
+    bench(C-1, N, Host, Port, [Cli | Arr]).
+
+collector([H | T], Times) ->
+    receive
+        {time, H, Time} -> collector(T, [Time | Times])
+    end;
+collector([], Times) ->
+    io:format("Max: ~ws Min: ~ws Median: ~ws~n",
+        [lists:max(Times) / 1000000,
+         lists:min(Times) / 1000000,
+         lists:nth(length(Times) div 2, lists:sort(Times)) / 1000000]).
+
+client_runner(Parent, N, Host, Port) ->
     Start = now(),
     run(N, Host, Port),
     Finish = now(),
-    timer:now_diff(Finish, Start).
+    Time = timer:now_diff(Finish, Start),
+    Parent ! {time, self(), Time}.
 
 run(N, Host, Port) ->
     case N of
