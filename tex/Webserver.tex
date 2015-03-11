@@ -1,0 +1,128 @@
+%% En enkel mall för att skapa en labb-raport.
+\documentclass[a4paper, 11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[swedish]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage[colorlinks=true]{hyperref}
+\usepackage[parfill]{parskip}
+\usepackage{color}
+\usepackage{syntax}
+\usepackage{newfloat}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{mathtools}
+
+\graphicspath{ {./images/} }
+
+\definecolor{codebg}{rgb}{.9,.9,.9}
+
+\DeclareFloatingEnvironment[
+  fileext   = logr,
+  listname  = {Lista över Grammatik},
+  name      = Grammatik,
+ % placement = htp
+]{Grammar}
+
+\lstset{
+	language=erlang,
+	basicstyle=\footnotesize\ttfamily,
+	numbers=left,
+	breaklines=true,
+	frame=r,
+	captionpos=b,
+	showstringspaces=false,
+	escapeinside={@*}{*@},
+	backgroundcolor=\color{codebg},
+	tabsize=2
+}
+
+\hyphenpenalty=900
+\hyphenation{prestanda-vinster antingen ut-formad funk-tion-en grunden inter-pretator uppgiftsdeklarationen}
+
+\title{Webserver Rudy}
+\author{Emil Tullstedt \href{mailto:emiltu@kth.se}{$<$emiltu@kth.se$>$}}
+\date{2015-02-19}
+
+\begin{document}
+
+\maketitle
+
+\section{Uppgiften}
+\label{sec:uppgiften}
+
+Uppgiften inför seminarie 4 gick ut på att utveckla en minimal server för HTTP-protokollet som beskrivet i RFC 2616 (från IETF).
+
+Webbservern ska bara hantera de enklaste formerna av \texttt{GET}-förfrågningar, och har i sitt grundutförande ingen hänsyn till de olika HTTP-meddelandena som finns utöver \texttt{200 OK}.
+
+\section{Ansats}
+Koden för att få upp en fungerande webbserver var i största delen given i uppgiften, men för att förstå hur webbservern är uppbyggd behövs en förståelse för de olika delarnas funktion.
+
+\subsection{HTTP-förfrågningshantering}
+Den första modulen som skrivs är \texttt{http}, som hanterar HTTP-förfrågningar och genererar HTTP-svar. \texttt{http} består essentiellt av två funktioner \texttt{parse_request/1} samt \texttt{ok/1}. \texttt{parse_request/1}:s uppgift är att (tillsammans med interna, ur ett API-perspektiv oviktiga funktioner) undersöka en sträng av karaktärer för att identifiera olika delar av en HTTP-header och spara dem (tillsammans med HTTP-bodyn) i en tuple. Den gör detta genom att köra en mönstermatchning mot \lstinline$"GET " ++ R0$ på strängen för att se om det liknar en \texttt{GET}-förfrågan.
+
+Om strängen innehåller en \texttt{GET}-förfrågan så kommer \texttt{parse_request/1} att iterera över nästa ''ord'', det vill säga innehållet i \texttt{R0} tills funktionen hittar ett mellanslagstecken. Det ''ordet'' sparas sedan som förfrågnings-\texttt{URI}n (serverns hostname ingår inte i \texttt{URI}n). Innehållet efter det här mellanslaget förväntas vara antingen \lstinline$"HTTP/1.0\r\n"$ eller \lstinline$"HTTP/1.1\r\n"$, där \lstinline$\r\n$ står för byte av rad i HTTP-standarden.
+
+De kommande raderna fram till och med att det dyker upp två nya rader i rad, d.v.s. teckenföljden \lstinline$\r\n\r\n$, tolkas som meddelandets \texttt{headers} och sparas uppdelat per rad. Allt därefter är \texttt{body} och skickas med  som det är.
+
+Funktionen \texttt{ok/1} genererar bara ett svar i HTTP-stil innehållandes \lstinline$HTTP/1.1 200 OK\r\n\r\n BODY$ där \texttt{BODY} representerar innehållet i argumenetet som skickas till \texttt{ok/1}.
+
+\subsection{TCP-sockets!}
+\label{subsec:tcp}
+Förutom att hantera enkla HTTP-meddelanden så behöver servern hantera TCP-sockets för att kunna ta emot trafik. Modulen \texttt{rudy} vars funktion \texttt{init/1} lyssnar på en TCP-port angiven som argument till funktionen för att sedan hantera förfrågningar som kommer till den porten.
+
+När en förfrågan kommer så accepteras förfrågan och skickas vidare till att tolkas med hjälp av \texttt{http:parse_request/1}. I testsyftet matas \texttt{URI}n in i \texttt{http:ok/1} och detta skickas tillbaka till klienten, som då får se den \texttt{URI}n som klienten frågade servern om.
+
+När förfrågan hanterats av servern kommer servern köra funktionen som hanterar förfrågningar svansrekursivt så att servern kan hantera sekventiella förfrågningar istället för att avsluta efter sin första exekvering.
+
+Vidare skapades modulen \texttt{server} vars uppgift är att i bakgrunden starta och stoppa servern som startas med \texttt{rudy:init/1}. \texttt{server}s funktioner är inte funktionellt relevanta, utan är att se som ''hjälpfunktioner'' till modulen \texttt{rudy}.
+
+Slutligen kompletteras \texttt{rudy} med en 40 ms fejkad fördröjning för att göra en approximering av I/O-tid och lättare se hur olika implementationer fungerar vid sidan om varandra.
+
+\subsection{Testfunktionen}
+Modulen \texttt{test} som gavs i uppgiftsdeklarationen är till för att testa hur servern hanterar förfrågningar och skickar sekventiellt en förfrågan och väntar på ett svar innan nästa förfrågan skickas ut. Det gör att \texttt{test}-modulen inte kan hantera simultana förfrågningar i sitt grundutförande utan behöver utvecklas till att öppna simultana uppkopplingar. Grundservern för \texttt{rudy} klarar sig även utan den här modifieringen, då även servern är helt sekventiell, men vid alla prestandaförbättringsmodifieringar kommer användaren att stöta på problemet att faktisk nätverkstrafik inte fungerar i perfekt sekvens.
+
+Modulen exporterar funktionerna \texttt{test:bench/1}, \texttt{test:bench/2} och \texttt{test:bench/3} där /1 har standardiserat hostname till \textit{localhost} och, tillsammans med /2, antalet körningar till 100.
+
+\subsection{Parallellisering av \texttt{rudy}}
+För att prestandaoptimera modulen \texttt{rudy} så gjordes en en-rads förändring av programmet i \texttt{rudy}. Den enda förändringen var att kapsulera in \texttt{gen_tcp:recv} som behandlar varje klients förfrågningar i \texttt{spawn/1}. Resultatet av denna förändring redovisas i sektion \ref{sec:utv}.
+
+\subsection{Leverera filer}
+\label{subsec:files}
+
+För att utöka webbservern till att hantera filer så är det lämpligt att skapa ett sätt att hantera HTTP-statuskoden \texttt{404 Not Found}\footnote{IETF RFC2616 §10.4.5 \url{https://tools.ietf.org/html/rfc2616\#section-10.4.5}} (det görs i en funktion \texttt{http:not_found/0} som är nästintill identisk med \texttt{http:ok/1} men har ett statiskt meddelande och såklart \textit{404 Not Found} istället för \textit{200 OK}). När detta är gjort så återstår för en grundläggande implementation bara att skriva kod för att öppna en fil (i det här fallet användes \texttt{file:read_file/1} från Erlangs standardbibliotek för att göra så) och hantera de olika fallen som kan uppstå.
+
+Genom att använda prefixet \texttt{content/} på allt innehåll webbservern ska leverera så blir det viss uppdelning mellan logik och presentation. Vidare behöver webbservern lära sig att undersöka innehållet i \texttt{index.html} då användaren försöker få tag i en mapp.
+
+Dessa fallen hanteras med en case-sats som byter ut serverns tidigare ''vänta i 40 ms och skriv sedan ut URI''-beteende som beskrivet i sektion \ref{subsec:tcp}.
+
+\begin{lstlisting}
+case file:read_file("content" ++ URI) of
+	{ok, Entry} -> http:ok(Entry);
+	{error, eisdir} ->
+		case file:read_file("content" ++ URI ++ "/index.html") of
+			{ok, Entry} -> http:ok(Entry);
+			{error, _} -> http:not_found()
+		end;
+	{error, _} -> http:not_found()
+end.
+\end{lstlisting}
+
+Filhanteringen är inte färdigställd, och borde snarast flyttas ut i en egen modul som både kan öka säkerhetsnivån, isoleringen och skicka filtyper till klienten. Övriga förbättringar som snarast bör införas är att det borde skrivas en modul som hanterar HTTP-tidsstämplar\footnote{IETF RFC2616 §3.3.1 \url{https://tools.ietf.org/html/rfc2616\#section-3.3.1}}.
+
+\section{Utvärdering}
+\label{sec:utv}
+Den sekventiella, naiva implementationen av servern tar $\sim$4.1s på sig att hantera 100 förfrågningar, vilket motsvarar strax över $100\times 40$ms, eller tiden som den fejkade I/O fördröjningen tar. Det betyder att en överväldigande del av tiden går åt till att vänta på en 40ms fördröjning. Mycket riktigt så halveras tiden när fördröjningen sänks till 20ms. För att kompensera för det här kan servern börja exekvera olika förfrågningar insekventiellt.
+
+Vid försök att modifiera servern för insekventiellt bruk så visade sig det att det var krångligare än det såg ut att vara att modifiera \texttt{test}-modulen för att hantera den här förändringen, så istället för att använda det verktyget användes Apache-projektets verktyg \textbf{ab} för att testa skillnaden i prestanda mellan sekventiellt och insekventiellt.
+
+Det här är ett aningen mer advancerat test än \texttt{test:bench}-familjen och tar 6.5 sekunder för den naiva implementationen för 100 förfrågningar med tio parallella frågor. Den parallella varianten av \texttt{rudy} där behandlingen av klientens förfråga kastas ut i en ny process tar med samma inställningar av \textbf{ab} bara strax över 0.4 sekunder för 100 förfrågningar, bid en ökning från 10 till 100 parallela frågor tar testet $\sim$0.05 sekunder, bägge resultaten tyder på att förändringen var väldigt effektiv.
+
+Med ett 128 byte långt HTML-dokument som förs över med koden som den anpassades i sektion \ref{subsec:files} så sekvensen 0.2 sekunder för 100 förfrågningar, 10 simultana och bara 0.03 sekunder då alla 100 förfrågningar körs simultant. I den takten skulle servern klara av att hantera 3200 förfrågningar per sekund. För att undersöka om så är fallet så körs 30 000 frågor totalt, 100 simultana och svaret dyker upp på 4.6 sekunder, vilket tyder på att servern klarar av att hantera över 6 000 förfrågningar per sekund.
+
+\section{Sammanfattning}
+Den här uppgiften känns som att den skulle passa tidigare i kursen då den baserades mestadels på färdigskriven kod och analys. Uppgiften var givande på så sätt att den gav en inblick i hur koncist och enkelt det är att få igång en väldigt enkel HTTP-server utan att ge falska förhoppningar i stil med ''Det här är en komplett HTTP-server!''
+
+\end{document}

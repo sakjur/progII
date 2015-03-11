@@ -37,6 +37,7 @@ request(Client) ->
     ok.
 
 reply({{get, URI, _}, _, _}) ->
+    timer:sleep(20),
     case file:read_file("content" ++ URI) of
         {ok, Entry} -> http:ok(Entry);
         {error, eisdir} -> 
